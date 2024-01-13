@@ -1,104 +1,47 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Layout from './Layout'
+import AddInventory from './AddInventory'
+import EditInventory from './EditInventory'
 
-const AddItem = ({ close }) => {
-
-  const [itemDetail, setItemDetail] = useState({
-    name: "",
-    price: 0,
-    stock: 0
-  })
-
-  const handleFormSubmit = (e) => {
-    e.preventDefault()
-
-    console.log(itemDetail)
-
-  }
-
-  const handleSetFormData = (e) => {
-    let value = e.target.value
-
-    let data = {
-      ...itemDetail,
-      [e.target.name]: value
-    }
-    setItemDetail(data)
-  }
-
-
-  const handleClose = () => {
-    close()
-  }
-
-  return (
-    <div className='absolute bg-white shadow-md p-6 border rounded-md w-[60%] max-w-[40rem] max top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'>
-      <h1 className='text-xl font-bold mb-4'>Add Item</h1>
-
-      <form onSubmit={handleFormSubmit}>
-
-        <p className='mb-1 text-sm '>Name</p>
-        <input name='name' value={itemDetail['name']} onChange={handleSetFormData} className='shadow appearance-none border rounded w-full mb-4 py-2 px-3 text-gray-700 focus:outline-none focus:shadow-outline' type='text' placeholder='Enter Item Name...' />
-
-        <p className='mb-1 text-sm '>Price </p>
-        <input name='price' value={itemDetail['price']} onChange={handleSetFormData} className='shadow appearance-none border rounded w-full mb-4 py-2 px-3 text-gray-700 focus:outline-none focus:shadow-outline' type='number' placeholder='Enter Item Price...' />
-
-        <p className='mb-1 text-sm '>Stock (Per Unit)</p>
-        <input name='stock' value={itemDetail['stock']} onChange={handleSetFormData} className='shadow appearance-none border rounded w-full mb-4 py-2 px-3 text-gray-700 focus:outline-none focus:shadow-outline' type='number' placeholder='Enter Item Stock...' />
-
-
-        <div className='flex mt-2'>
-          <button
-            type='submit'
-            className='h-max w-max font-bold rounded-sm px-3 py-2 text-white bg-[#fe100e] hover:cursor-pointer'
-          >
-            Submit
-          </button>
-          <button
-            type='button'
-            onClick={handleClose}
-            className='h-max w-max font-bold rounded-sm px-3 py-2 ml-4 border border-[#fe100e] text-[#fe100e]  hover:cursor-pointer'
-          >
-            Close
-          </button>
-        </div>
-      </form>
-
-
-
-    </div>
-  )
-}
 
 const Inventory = () => {
   const [isAddOpen, setAddOpen] = useState(false)
-  const [items, setItems] = useState([
-    {
-      name: "Banana",
-      price: 23,
-      stock: 46
-    },
-    {
-      name: "Banana",
-      price: 23,
-      stock: 46
-    },
-    {
-      name: "Banana",
-      price: 23,
-      stock: 46
-    },
-    {
-      name: "Banana",
-      price: 23,
-      stock: 46
-    }
-
-  ])
+  const [isEditOpen, setEditOpen] = useState(false)
+  const [editData, setEditData] = useState()
+  const [items, setItems] = useState([])
 
   const handleAddItem = () => {
     setAddOpen(true)
   }
+
+  const fetchData = async () => {
+    const options = {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    };
+
+    fetch('http://localhost:8081/list', options)
+      .then(response => response.json())
+      .then(data => setItems(data))
+      .catch(error => console.error(error));
+
+  }
+
+  const handleEditData = (idx) => {
+    setEditOpen(true)
+    setEditData(items[idx])
+  }
+
+  const handleDeleteData = (idx) => {
+
+  }
+
+
+  useEffect(() => {
+    fetchData()
+  }, [])
 
   return (
     <Layout>
@@ -128,13 +71,16 @@ const Inventory = () => {
               <th scope="col" className="py-3 px-4 text-center">
                 Stock
               </th>
+              <th scope="col" className="py-3 px-4 text-center">
+                Action
+              </th>
             </tr>
           </thead>
           <tbody>
             {
               items.map(({ name, price, stock }, idx) => {
                 return (
-                  <tr>
+                  <tr key={idx}>
                     <td className="py-2 px-4 text-center text-black">
                       {idx + 1}
                     </td>
@@ -147,15 +93,24 @@ const Inventory = () => {
                     <td className="py-2 px-4 text-center text-black">
                       {stock}
                     </td>
+                    <td className='py-3 px-6 flex justify-center'>
+                      <svg onClick={() => handleEditData(idx)} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 ml-4 hover:mt-[-2px] hover:cursor-pointer ">
+                        <path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" />
+                        <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0010 3H4.75A2.75 2.75 0 002 5.75v9.5A2.75 2.75 0 004.75 18h9.5A2.75 2.75 0 0017 15.25V10a.75.75 0 00-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5z" />
+                      </svg>
+                      {/* <svg onClick={() => handleDeleteData(idx)} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 ml-4 hover:mt-[-2px] hover:cursor-pointer text-red-600">
+                        <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                      </svg> */}
+                    </td>
                   </tr>
-
                 )
               })
             }
           </tbody>
         </table>
       </div>
-      {isAddOpen && <AddItem close={() => setAddOpen(false)} />}
+      {isAddOpen && <AddInventory close={() => setAddOpen(false)} onSuccess={() => fetchData()} />}
+      {isEditOpen && <EditInventory close={() => setEditOpen(false)} onSuccess={() => fetchData()} data={editData} />}
     </Layout>
   )
 }
