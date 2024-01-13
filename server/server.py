@@ -6,6 +6,10 @@ from firebase_admin import credentials, firestore, initialize_app
 from flask_cors import CORS
 from flask_cors import cross_origin
 import time
+from twilio.rest import Client
+import threading
+import asyncio
+from uagents import Agent, Context
 
 # Initialize Flask App
 app = Flask(__name__)
@@ -21,6 +25,56 @@ default_app = initialize_app(cred)
 db = firestore.client()
 inventory_ref = db.collection('inventory')
 orders_ref = db.collection('orders')
+
+
+#twilio support
+account_sid = 'AC8bc2a0314f8528e7c1b09e00535391ef'
+auth_token = 'b35fc0eeb985e30a30ad274568bbcd00'
+twilio_phone_number = '+16592217110'
+
+# Create Twilio client
+client = Client(account_sid, auth_token)
+
+# fetch.ai agent
+store_manager = Agent(name="Store Manager", seed="store_manager recovery phrase")
+
+# Fetch all products from the inventory
+def fetch_all_inventory():
+    all_inventory = [doc.to_dict() for doc in inventory_ref.stream()]
+    return all_inventory
+ 
+@store_manager.on_interval(period=10.0)
+async def check_status(ctx: Context):
+    recipient_phone_number = '+918104233919'
+
+    items_to_alert = []
+    # Fetch all products from the inventory
+    all_inventory = fetch_all_inventory()
+
+    for item in all_inventory:
+        stock = int(item.get('stock', 0))
+        alert_stock = int(item.get('alert_stock', 10))
+        print(stock,alert_stock)
+        if stock < alert_stock:
+            items_to_alert.append(item.get('name'))
+
+    if items_to_alert:
+        # Construct the message
+        message_body = f"Low stock alert! Items running low: {', '.join(items_to_alert)}"
+        
+        # Send the message
+        ctx.logger.info(message_body)
+        # message = client.messages.create(
+        #   body='Your message goes here!',
+        #   from_=twilio_phone_number,
+        #   to=recipient_phone_number
+        # )
+        # ctx.logger.info(f'SMS sent successfully! SID: {message.sid}')
+    else:
+        ctx.logger.info('All product are in sufficient quantity')
+    # Replace 'Your message goes here!' with the actual message you want to send
+
+    return 
 
 
 
@@ -145,6 +199,13 @@ def delete():
         return f"An Error Occured: {e}"
 port = int(os.environ.get('PORT', 8081))
 
+def run_agent():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    store_manager.run()
 
 if __name__ == '__main__':
+    # Start the agent in a new thread
+    agent_thread = threading.Thread(target=run_agent)
+    agent_thread.start()
     app.run(threaded=True, host='0.0.0.0', port=port)
