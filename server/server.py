@@ -10,6 +10,7 @@ from twilio.rest import Client
 import threading
 import asyncio
 from uagents import Agent, Context
+from datetime import datetime, timedelta
 
 # Initialize Flask App
 app = Flask(__name__)
@@ -29,7 +30,7 @@ orders_ref = db.collection('orders')
 
 #twilio support
 account_sid = 'AC8bc2a0314f8528e7c1b09e00535391ef'
-auth_token = 'b35fc0eeb985e30a30ad274568bbcd00'
+auth_token = '0f8c76aaeb2bbc7dd2e54cfa5aa59dfa'
 twilio_phone_number = '+16592217110'
 
 # Create Twilio client
@@ -43,7 +44,7 @@ def fetch_all_inventory():
     all_inventory = [doc.to_dict() for doc in inventory_ref.stream()]
     return all_inventory
  
-@store_manager.on_interval(period=10.0)
+@store_manager.on_interval(period=24 * 60 * 60)
 async def check_status(ctx: Context):
     recipient_phone_number = '+918104233919'
 
@@ -55,8 +56,34 @@ async def check_status(ctx: Context):
         stock = int(item.get('stock', 0))
         alert_stock = int(item.get('alert_stock', 10))
         print(stock,alert_stock)
+        
         if stock < alert_stock:
+            print("less than alert ", item.get('name'))
             items_to_alert.append(item.get('name'))
+        else:
+            print("more than alert ", item.get('name'))
+            two_days_ago = datetime.now() - timedelta(days=2)
+            last_two_days_sales = 0
+
+            # Fetch orders in the last 2 days
+            orders_in_last_two_days = orders_ref.where(
+                'timestamp', '>=', two_days_ago.timestamp()
+            ).stream()
+
+            for order in orders_in_last_two_days:
+                order_data = order.to_dict().get('order_items', [])
+                for order_item in order_data:
+                    if order_item['item_id'] == item['id']:
+                        last_two_days_sales += order_item['quantity']
+            
+            print("Last 2 days sales of ", item.get('name'))
+            print(last_two_days_sales)
+
+            # Check if the stock can fulfill the last 2 days' sales
+            if (stock - alert_stock) > last_two_days_sales:
+                items_to_alert.append(item.get('name'))
+
+    
 
     if items_to_alert:
         # Construct the message
@@ -64,12 +91,12 @@ async def check_status(ctx: Context):
         
         # Send the message
         ctx.logger.info(message_body)
-        # message = client.messages.create(
-        #   body='Your message goes here!',
-        #   from_=twilio_phone_number,
-        #   to=recipient_phone_number
-        # )
-        # ctx.logger.info(f'SMS sent successfully! SID: {message.sid}')
+        message = client.messages.create(
+          body=message_body,
+          from_=twilio_phone_number,
+          to=recipient_phone_number
+        )
+        ctx.logger.info(f'SMS sent successfully! SID: {message.sid}')
     else:
         ctx.logger.info('All product are in sufficient quantity')
     # Replace 'Your message goes here!' with the actual message you want to send
